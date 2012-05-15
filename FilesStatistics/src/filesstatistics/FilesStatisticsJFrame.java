@@ -5,9 +5,14 @@
 package filesstatistics;
 
 import filesstatistics.core.DataStructure;
+import filesstatistics.core.PropertiesReader;
 import filesstatistics.core.StatisticsReader;
 import filesstatistics.core.StatisticsReaderImpl;
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 
@@ -18,12 +23,15 @@ import javax.swing.table.TableModel;
 public class FilesStatisticsJFrame extends javax.swing.JFrame {
     
     private StatisticsReader statisticsReader = new StatisticsReaderImpl();
+    private Properties applicationProperties;
 
     /**
      * Creates new form FilesStatisticsJFrame
      */
-    public FilesStatisticsJFrame() {
+    public FilesStatisticsJFrame() throws IOException {
         initComponents();
+        applicationProperties = PropertiesReader.readProperties();
+        filesTablePostCreation(filesTable);
     }
 
     /**
@@ -51,21 +59,12 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
 
         filesTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null},
-                {null, null, null}
+
             },
             new String [] {
-                "Path", "Number of reads", "Number of writes"
-            }
-        ) {
-            Class[] types = new Class [] {
-                java.lang.String.class, java.lang.Integer.class, java.lang.Integer.class
-            };
 
-            public Class getColumnClass(int columnIndex) {
-                return types [columnIndex];
             }
-        });
+        ));
         filesTable.getTableHeader().setReorderingAllowed(false);
         jScrollPane1.setViewportView(filesTable);
 
@@ -88,20 +87,66 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void refreshButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshButtonActionPerformed
-        List<DataStructure> dataStructures = statisticsReader.readStatistics();
-        DefaultTableModel model = (DefaultTableModel) filesTable.getModel();
-        model.setRowCount(dataStructures.size());
-        int index = 0;
-        for(DataStructure data : dataStructures) {
-            setDataStructureToTable(model, index, data);
-            index++;
+        try {
+            Set<String> operations = StatisticsReader.OPERATIONS;
+            Map<String, Map<String, Object>> stats = statisticsReader.readStatistics();
+            DefaultTableModel model = (DefaultTableModel) filesTable.getModel();
+            model.setRowCount(countRows(stats));
+            int index = 0;
+            for(String file : stats.keySet()) {
+                Map<String, Object> descriptions = stats.get(file);
+                List<DataStructure> dataStructures = (List<DataStructure>)descriptions.get(StatisticsReader.DATA_STRUCTURE_LIST_KEY);
+                String fileType = (String)descriptions.get(StatisticsReader.FILE_TYPE_KEY);
+                for(String op : operations) {
+                    if(!descriptions.containsKey(op)) {
+                        continue;
+                    }
+                    int count = (Integer)descriptions.get(op);
+                    Date date = getLastModificationDateForOperation(op, dataStructures);
+                    setInfoToTable(model, index, file, fileType, op, count, date);
+                    index++;
+                }
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_refreshButtonActionPerformed
 
-    private void setDataStructureToTable(TableModel model, int rowIndex, DataStructure data) {
-        model.setValueAt(data.getPath(), rowIndex, 0);
-        model.setValueAt(data.getRead(), rowIndex, 1);
-        model.setValueAt(data.getWrite(), rowIndex, 2);
+    private void setInfoToTable(TableModel model, int rowIndex, String fileName, String fileType, String operation, int count, Date lastModification) {
+        model.setValueAt(fileName, rowIndex, 0);
+        model.setValueAt(fileType, rowIndex, 1);
+        model.setValueAt(operation, rowIndex, 2);
+        model.setValueAt(count, rowIndex, 3);
+        model.setValueAt(lastModification.toString(), rowIndex, 4);
+    }
+    
+    private int countRows(Map<String, Map<String, Object>> stats) {
+        int count = 0;
+        
+        for(String file : stats.keySet()) {
+            Map<String, Object> descriptions = stats.get(file);
+            count += descriptions.keySet().size()-2; //count only operations (omit dataStructe list and file type infos)
+        }
+        return count;
+    }
+    
+    private Date getLastModificationDateForOperation(String operation, List<DataStructure> dataStructures) {
+        Date date = null;
+        for(DataStructure ds : dataStructures) {
+            if(!ds.getOperation().equals(operation)) {
+                continue;
+            }
+            Date tmp = ds.getDate();
+            if (date == null) {
+                date = tmp;
+            } else {
+                if(date.before(tmp)) {
+                    date = tmp;
+                }
+            }
+        }
+        
+        return date;
     }
     
     /**
@@ -141,7 +186,11 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
 
             public void run() {
-                new FilesStatisticsJFrame().setVisible(true);
+                try {
+                    new FilesStatisticsJFrame().setVisible(true);
+                } catch (IOException ex) {
+                    Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         });
     }
@@ -151,4 +200,13 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton refreshButton;
     // End of variables declaration//GEN-END:variables
+
+    private JTable filesTablePostCreation(JTable table) {
+        DefaultTableModel model = (DefaultTableModel) filesTable.getModel();
+        String headers = applicationProperties.getProperty(PropertiesReader.HEADERS_LIST_KEY);
+        String[] headersTab = headers.split(",");
+        model.setColumnCount(headersTab.length);
+        model.setColumnIdentifiers(headersTab);
+        return table;
+    }
 }
