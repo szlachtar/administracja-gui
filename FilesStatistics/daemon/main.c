@@ -1,9 +1,10 @@
 #include <stdlib.h>
-
+#include <string.h>
 #include <sys/inotify.h>
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <time.h>
 #include <syslog.h>
@@ -92,6 +93,67 @@ void analyze(struct inotify_event *event)
         fprintf (logfile,"%s %c D %lu\n",event->name,mark,time(NULL));
 }
 
+int char_to_flag(char c)
+{
+	switch(c)
+	{
+		case 'a':
+		case 'A':
+			return IN_ACCESS;
+		case 'c':
+		case 'C':
+			return IN_CREATE;
+		case 'o':
+		case 'O': 
+			return IN_OPEN;
+		case 'm':
+		case 'M':
+			return IN_MODIFY;
+		case 'd':
+		case 'D':
+			return IN_DELETE;
+		default:
+			return 0;
+	}
+}
+
+void load_config(int fd)
+{
+	char *buffer=0;
+	char *pch=0;
+	int i;
+	
+	// TODO add to etc dir
+	int config_fd = open("file_mon.conf",O_RDONLY);
+	if( config_fd < 0 )
+	{
+		syslog(LOG_ERR,"cannot open config file");
+		exit(1);
+	}
+	
+	int size = lseek(config_fd,0, SEEK_END);
+	lseek(config_fd,0,SEEK_SET);
+	buffer = malloc(sizeof(char)*size);
+	read(config_fd,buffer,size); 
+	
+	pch = strtok(buffer," \t\n");
+	
+	while(pch!=NULL)
+	{
+		int len = strlen(pch); 
+		int flags=0; 
+		for(i=0;i<len;++i)
+			flags|=char_to_flag(pch[i]);
+		pch = strtok(NULL," \t\n");
+		
+		if(inotify_add_watch(fd,pch, flags) < 0){
+        	syslog(LOG_ERR,"cannot add_watch on %s", pch);
+        }
+		pch = strtok(NULL," \t\n");
+	}
+    free(buffer);
+} 
+
 int main(int argc, char** argv)
 {
 	int c,daemonize = 0;
@@ -105,7 +167,7 @@ int main(int argc, char** argv)
                 daemonize = 1;
                 break;
             default:
-                //PrintUsage(argc, argv);
+                print_help();
                 exit(0);
                 break;
         }
@@ -128,12 +190,7 @@ int main(int argc, char** argv)
 
 
     fd = inotify_init();
-
-    /* monitor home dir for open, create, modify and delete */
-    if(inotify_add_watch(fd,"/tmp", IN_ACCESS | IN_CREATE | IN_OPEN | IN_MODIFY | IN_DELETE) < 0){
-        syslog(LOG_ERR,"cannot add_watch");
-        exit(1);
-    }
+    load_config(fd);
 
     while(true){
         size = read(fd,&buffer,EVENT_BUF_LEN);
