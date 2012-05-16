@@ -22,6 +22,7 @@ struct event_item
 {
     struct inotify_event *event;
     struct event_item *next;
+    time_t time;
 };
 
 void daemonize_process()
@@ -77,6 +78,7 @@ void analyze(struct event_item *event_item)
 {
     struct event_item *next;
     struct inotify_event *event;
+    char mark=' ';
 
     if(!event_item)
         return;
@@ -84,29 +86,26 @@ void analyze(struct event_item *event_item)
     next = event_item->next;
     event = event_item->event;
 
-    char mark=' ';
-
     /* directory? */
     if(event->mask & IN_ISDIR)
         mark='D';
     else
         mark='F';
 
-
     /* analaze type of event and log it to stats.dat */
     if(event->mask & IN_CREATE)
-        fprintf (logfile,"%s %c C %lu\n",event->name,mark,time(NULL));
+        fprintf (logfile,"%s %c C %lu\n", event->name, mark, event_item->time);
     if(event->mask & IN_ACCESS)
-        fprintf (logfile,"%s %c A %lu\n",event->name,mark,time(NULL));
+        fprintf (logfile,"%s %c A %lu\n", event->name, mark, event_item->time);
     if(event->mask & IN_OPEN)
-        fprintf (logfile,"%s %c O %lu\n",event->name,mark,time(NULL));
+        fprintf (logfile,"%s %c O %lu\n", event->name, mark, event_item->time);
     if(event->mask & IN_MODIFY)
-        fprintf (logfile,"%s %c M %lu\n",event->name,mark,time(NULL));
+        fprintf (logfile,"%s %c M %lu\n", event->name, mark, event_item->time);
     if(event->mask & IN_DELETE)
-        fprintf (logfile,"%s %c D %lu\n",event->name,mark,time(NULL));
+        fprintf (logfile,"%s %c D %lu\n", event->name, mark, event_item->time);
 
-    fflush(logfile);
-    free(event_item);
+	free(event);
+	free(event_item);
     analyze(next);
 }
 
@@ -174,6 +173,16 @@ void load_config(int fd)
 int main(int argc, char** argv)
 {
     int c,daemonize = 0;
+    int fd,i;
+    ssize_t size;
+    struct inotify_event *event;
+    char buffer[EVENT_BUF_LEN];
+    struct event_item *head;
+    struct event_item *last;
+    struct event_item *tmp;
+    time_t time_start;
+    size_t event_size;
+
     while( (c = getopt(argc, argv, "nD|help")) != -1) {
         switch(c){
         case 'h':
@@ -192,23 +201,12 @@ int main(int argc, char** argv)
 
     if(daemonize) daemonize_process();
 
-
-    int fd,i;
-    ssize_t size;
-    struct inotify_event *event;
-    char buffer[EVENT_BUF_LEN];
-    struct event_item *head;
-    struct event_item *last;
-    struct event_item *tmp;
-    time_t time_start;
-
     /* initialize log, you need to create file_mon catalogue first! */
     logfile = fopen("/var/lib/file_mon/stats.dat", "w");
     if(logfile < 0) {
         syslog(LOG_ERR,"cannot open /var/lib/file_mon/stats.dat for writing");
         exit(1);
     }
-
 
     fd = inotify_init();
     load_config(fd);
@@ -217,14 +215,20 @@ int main(int argc, char** argv)
     last = NULL;
 
     time_start = time(NULL);
+    int total_size = 0;
+
     while(true){
         size = read(fd,&buffer,EVENT_BUF_LEN);
 
         for(i = 0;i<size;){
+            event = (struct inotify_event *) buffer + i;
+            event_size = EVENT_SIZE+event->len;
 
-            tmp =  malloc(sizeof(struct event_item));
-            tmp->event = (struct inotify_event *) buffer + i;
+            tmp = malloc(sizeof(struct event_item));
+            tmp->time = time(NULL);
             tmp->next = NULL;
+            tmp->event = malloc(event_size);
+            memcpy(tmp->event,event,event_size);
 
             if(last==NULL){
                 head = tmp;
@@ -233,17 +237,18 @@ int main(int argc, char** argv)
                 last->next = tmp;
                 last = tmp;
             }
-
             i += EVENT_SIZE+tmp->event->len;
+            total_size += 1;
         }
 
         if(head && (time(NULL) - time_start)  > 5){
             analyze(head);
             time_start = time(NULL);
+            total_size = 0;
+            head = NULL;
+            last = NULL;
+			fflush(logfile);
         }
-
-        head = NULL;
-        last = NULL;
     }
     return 0;
 }
