@@ -4,27 +4,74 @@
  */
 package filesstatistics.core;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.*;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
  * @author Rafal
  */
 public class StatisticsReaderImpl implements StatisticsReader {
+    
+    private Properties applicationProperties = null;
+    
+    public StatisticsReaderImpl() throws IOException {
+        applicationProperties = PropertiesReader.readProperties();
+    }
 
     @Override
-    public List<DataStructure> readStatistics() {
-        List<DataStructure> files = new ArrayList<DataStructure>();
+    public Map<String, Map<String, Object>> readStatistics() throws IOException {
         
-        DataStructure structure = new DataStructure("/dev/null", 54, 97);
-        files.add(structure);
-        structure = new DataStructure("/home/student/student.file", 999, 666);
-        files.add(structure);
-        structure = new DataStructure("/etc/passwd", 9999, 34);
-        files.add(structure);
+        FileReader statisticsFile = new FileReader((String)applicationProperties.get(PropertiesReader.STATISTICS_FILE_PATH_KEY));
+        BufferedReader br = new BufferedReader(statisticsFile);
         
-        return files;
+        Map<String, Map<String, Object>> statistics = new HashMap<String, Map<String,Object>>();
+        
+        String line = null;
+        while((line = br.readLine()) != null) {
+            DataStructure ds = parseLine(line);
+            if(!statistics.containsKey(ds.getFileName())) {
+                statistics.put(ds.getFileName(), new HashMap<String, Object>());
+            }
+            Map<String, Object> descriptionMap = statistics.get(ds.getFileName());
+            if(!descriptionMap.containsKey(DATA_STRUCTURE_LIST_KEY)) {
+                descriptionMap.put(DATA_STRUCTURE_LIST_KEY, new ArrayList<DataStructure>());
+                descriptionMap.put(FILE_TYPE_KEY, ds.getFileType());
+            }
+            
+            List<DataStructure> dsList = (List<DataStructure>)descriptionMap.get(DATA_STRUCTURE_LIST_KEY);
+            dsList.add(ds);
+            
+            if(descriptionMap.containsKey(ds.getOperation())) {
+                int count = (Integer)descriptionMap.get(ds.getOperation());
+                count++;
+                descriptionMap.put(ds.getOperation(), count);
+            } else {
+                OPERATIONS.add(ds.getOperation());
+                descriptionMap.put(ds.getOperation(), 1);
+            }
+        }
+        
+        return statistics;
     }
     
+    private DataStructure parseLine(String line) {
+        String[] fields = line.split(" ");
+        DataStructure ds = new DataStructure();
+        ds.setFileName(fields[0]);
+        ds.setFileType(fields[1]);
+        ds.setOperation(fields[2]);
+        try {
+            ds.setDate(new SimpleDateFormat((String)applicationProperties.getProperty(PropertiesReader.DATE_FORMAT)).parse(fields[3]));
+        } catch (ParseException ex) {
+            Logger.getLogger(StatisticsReaderImpl.class.getName()).log(Level.SEVERE, null, ex);
+            ds.setDate(new Date(0));
+        }
+        return ds;
+    }
 }

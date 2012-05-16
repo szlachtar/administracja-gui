@@ -4,48 +4,54 @@
  */
 package filesstatistics.core;
 
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  *
  * @author Rafal
  */
 public class DataStructure {
-
+    
+    private String fileName;
+    private String fileType;
+    private String operation;
+    private Date date;
+    
     public DataStructure() {
     }
 
-    public DataStructure(String path, int read, int write) {
-        this.path = path;
-        this.read = read;
-        this.write = write;
+    public Date getDate() {
+        return date;
     }
 
-    private String path;
-
-    public String getPath() {
-        return path;
+    public void setDate(Date date) {
+        this.date = date;
     }
 
-    public void setPath(String path) {
-        this.path = path;
+    public String getFileName() {
+        return fileName;
     }
 
-    private int read;
-
-    public int getRead() {
-        return read;
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
-    public void setRead(int read) {
-        this.read = read;
-    }
-    private int write;
-
-    public int getWrite() {
-        return write;
+    public String getFileType() {
+        return fileType;
     }
 
-    public void setWrite(int write) {
-        this.write = write;
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+
+    public String getOperation() {
+        return operation;
+    }
+
+    public void setOperation(String operation) {
+        this.operation = operation;
     }
 
 }
