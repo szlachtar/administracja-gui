@@ -1,7 +1,7 @@
 INSTALL_DIR=/usr/local
-
+CFLAGS=-g
 file_mon: main.c
-	$(CC) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
 	rm file_mon
