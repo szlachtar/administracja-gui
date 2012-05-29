@@ -1,5 +1,5 @@
 INSTALL_DIR=/usr/local
-CFLAGS=-g
+
 file_mon: main.c
 	$(CC) $(CFLAGS) $< -o $@
 

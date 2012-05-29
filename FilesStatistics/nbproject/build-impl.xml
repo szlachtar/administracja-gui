@@ -506,6 +506,8 @@ is divided into following sections:
     <target depends="init,deps-jar" name="-pre-pre-compile">
         <mkdir dir="${build.classes.dir}"/>
     </target>
+    <target name="-pre-run">
+    </target>
     <target name="-pre-compile">
         <!-- Empty placeholder for easier customization. -->
         <!-- You can override this target in the ../build.xml file. -->
@@ -617,7 +619,7 @@ is divided into following sections:
                 EXECUTION SECTION
                 =================
             -->
-    <target depends="init,compile,jar" description="Run a main class." name="run">
+    <target depends="init,compile,jar,-pre-run" description="Run a main class." name="run">
         <j2seproject1:java>
             <customize>
                 <arg line="${application.args}"/>
