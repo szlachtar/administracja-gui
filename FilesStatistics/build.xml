@@ -14,6 +14,12 @@
 	<exec dir="daemon" executable="/usr/bin/make"> 
     	</exec> 
     </target>
+
+    <target name ="-pre-run">
+	<exec dir="daemon/" executable="./file_mon">
+	  <arg value="-D"/>
+	</exec>
+    </target>  
     <!--
 
     There exist several targets which are by default empty and which can be 
