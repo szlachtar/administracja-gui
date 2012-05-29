@@ -185,22 +185,22 @@ void load_config(int fd)
 			else
 			{
 				int flags=0;
-				//MASK
+				//MASK 
 				char *s= pch+matchptr[1].rm_so;
 				for(;s!=pch+matchptr[1].rm_eo;++s){
 					flags|=char_to_flag(*s);
 				}
-
-
+				
+				
 				int path_len = (matchptr[2].rm_eo - matchptr[2].rm_so);
 				char* path_str = malloc(sizeof(char)* (path_len+1) );
 				memset(path_str, 0 , path_len+1);
 				strncpy(path_str,pch+ matchptr[2].rm_so, path_len);
 
 				struct stat file_info;
-				if(lstat(path_str,&file_info)==0){
+				if(lstat(path_str,&file_info)==0){	
 					if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
-						if(inotify_add_watch(fd,path_str, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
+						if(inotify_add_watch(fd,pch, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", pch);}
 					}else {
 						printf("WARN: %s is not a file or directory skipping \n",path_str);
 					}
