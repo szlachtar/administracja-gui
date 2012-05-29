@@ -4,8 +4,9 @@
  */
 package filesstatistics.core;
 
-import java.io.*;
-import java.text.DateFormat;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -66,12 +67,7 @@ public class StatisticsReaderImpl implements StatisticsReader {
         ds.setFileName(fields[0]);
         ds.setFileType(fields[1]);
         ds.setOperation(fields[2]);
-        try {
-            ds.setDate(new SimpleDateFormat((String)applicationProperties.getProperty(PropertiesReader.DATE_FORMAT)).parse(fields[3]));
-        } catch (ParseException ex) {
-            Logger.getLogger(StatisticsReaderImpl.class.getName()).log(Level.SEVERE, null, ex);
-            ds.setDate(new Date(0));
-        }
+        ds.setDate(Long.parseLong(fields[3]));
         return ds;
     }
 }
