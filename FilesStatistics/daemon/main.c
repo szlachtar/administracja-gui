@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/inotify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
@@ -105,7 +107,7 @@ int char_to_flag(char c)
 		case 'C':
 			return IN_CREATE;
 		case 'o':
-		case 'O': 
+		case 'O':
 			return IN_OPEN;
 		case 'm':
 		case 'M':
@@ -122,68 +124,81 @@ void load_config(int fd)
 {
 	char *buffer=0;
 	char *pch=0;
-	int i;
-	
-	// TODO add to etc dir
+	// TODO add it  to etc dir
 	int config_fd = open("file_mon.conf",O_RDONLY);
 	if( config_fd < 0 )
 	{
 		syslog(LOG_ERR,"cannot open config file");
 		exit(1);
 	}
-	
+
 	int size = lseek(config_fd,0, SEEK_END);
 	lseek(config_fd,0,SEEK_SET);
 	buffer = malloc(sizeof(char)*size);
-	read(config_fd,buffer,size); 
-	
+	read(config_fd,buffer,size);
+
 	pch = strtok(buffer,"\n");
-	
+
 	regex_t st_comment,st_pattern;
 	const char *comment_pattern = "^#.*$";
-  	const char *pattern = "^[CAOMD]+[ \\t]+[\w/]+$";
-	
-	
+  	const char *pattern = "^([CAOMD]+)[ \\t]+([a-zA-Z/\.-]+)$";
+
+
 	if (regcomp(&st_pattern, pattern, REG_EXTENDED)) {
     	fprintf(stderr," bad pattern:");
     	exit(1);
   	}
-	
+
 	if (regcomp(&st_comment, comment_pattern, REG_EXTENDED)) {
     	fprintf(stderr," bad pattern:");
     	exit(1);
   	}
-  	int line = 1; 
+
+  	int line = 1;
 	while(pch!=NULL)
 	{
+
 		int comm = regexec(&st_comment, pch, 0, NULL, 0);
-		
-		if(comm)//if not comment
+
+		if(comm == REG_NOMATCH)//if not comment
 		{
-			int res = regexec(&st_pattern, pch, 0, NULL, 0);
-			if(res) printf("error in line %d \n",line);  
-			else 
+			regmatch_t matchptr[3];
+ 			int res = regexec(&st_pattern, pch, 3, matchptr, 0);
+			if(res == REG_NOMATCH) printf("syntax error in line %d \n",line);
+			else
 			{
+				int flags=0;
+				//MASK 
+				char *s= pch+matchptr[1].rm_so;
+				for(;s!=pch+matchptr[1].rm_eo;++s){
+					flags|=char_to_flag(*s);
+				}
+				
+				
+				int path_len = (matchptr[2].rm_eo - matchptr[2].rm_so);
+				char* path_str = malloc(sizeof(char)* (path_len+1) );
+				memset(path_str, 0 , path_len+1);
+				strncpy(path_str,pch+ matchptr[2].rm_so, path_len);
+
+				struct stat file_info;
+				if(lstat(path_str,&file_info)==0){	
+					if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
+						if(inotify_add_watch(fd,pch, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", pch);}
+					}else {
+						printf("WARN: %s is not a file or directory skipping \n",path_str);
+					}
+				} else {
+					printf("WARN: %s does not exist skipping\n", path_str);
+				}
+				free(path_str);
 			} 
-				 
-		} 
-		/*int len = strlen(pch);
-		int flags=0; 
-		for(i=0;i<len;++i)
-			flags|=char_to_flag(pch[i]);
-		
-		
-		
-		
-		if(inotify_add_watch(fd,pch, flags) < 0){
-        	syslog(LOG_ERR,"cannot add_watch on %s", pch);
-        }*/
-        
+		}
+	
         line++;
 		pch = strtok(NULL,"\n");
 	}
     free(buffer);
-} 
+}
 
 int main(int argc, char** argv)
 {
