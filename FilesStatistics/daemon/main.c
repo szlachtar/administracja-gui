@@ -200,7 +200,7 @@ void load_config(int fd)
 				struct stat file_info;
 				if(lstat(path_str,&file_info)==0){	
 					if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
-						if(inotify_add_watch(fd,pch, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", pch);}
+						if(inotify_add_watch(fd,path_str, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
 					}else {
 						printf("WARN: %s is not a file or directory skipping \n",path_str);
 					}
