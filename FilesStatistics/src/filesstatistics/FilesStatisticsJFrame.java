@@ -4,11 +4,15 @@
  */
 package filesstatistics;
 
+import filesstatistics.charts.ChartFrame;
+import filesstatistics.charts.SimpleChart;
 import filesstatistics.core.DataStructure;
 import filesstatistics.core.PropertiesReader;
 import filesstatistics.core.StatisticsReader;
 import filesstatistics.core.StatisticsReaderImpl;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,6 +28,12 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     
     private StatisticsReader statisticsReader = new StatisticsReaderImpl();
     private Properties applicationProperties;
+    private DateFormat dateFormatter = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+    
+    /*
+     * {filename : { dataStructures : List<DataStructure>, A : 1, C : 234 ...} }
+     */
+    private Map<String, Map<String, Object>> stats;
 
     /**
      * Creates new form FilesStatisticsJFrame
@@ -65,7 +75,14 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
 
             }
         ));
+        filesTable.setEditingColumn(0);
+        filesTable.setEditingRow(0);
         filesTable.getTableHeader().setReorderingAllowed(false);
+        filesTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                filesTableMouseClicked(evt);
+            }
+        });
         jScrollPane1.setViewportView(filesTable);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -89,7 +106,7 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     private void refreshButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshButtonActionPerformed
         try {
             Set<String> operations = StatisticsReader.OPERATIONS;
-            Map<String, Map<String, Object>> stats = statisticsReader.readStatistics();
+            stats = statisticsReader.readStatistics();
             DefaultTableModel model = (DefaultTableModel) filesTable.getModel();
             model.setRowCount(countRows(stats));
             int index = 0;
@@ -102,8 +119,8 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
                         continue;
                     }
                     int count = (Integer)descriptions.get(op);
-                    Date date = getLastModificationDateForOperation(op, dataStructures);
-                    setInfoToTable(model, index, file, fileType, op, count, date);
+                    Date date = new Date(getLastModificationDateForOperation(op, dataStructures));
+                    setInfoToTable(model, index, file, fileType, op, count, dateFormatter.format(date));
                     index++;
                 }
             }
@@ -112,12 +129,21 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_refreshButtonActionPerformed
 
-    private void setInfoToTable(TableModel model, int rowIndex, String fileName, String fileType, String operation, int count, Date lastModification) {
+    private void filesTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_filesTableMouseClicked
+        JTable target = (JTable)evt.getSource();
+        int row = target.getSelectedRow();
+        SimpleChart chart = new SimpleChart(stats);
+        ChartFrame panel = new ChartFrame();
+        panel.draw(chart.createChart());
+        panel.setVisible(true);
+    }//GEN-LAST:event_filesTableMouseClicked
+
+    private void setInfoToTable(TableModel model, int rowIndex, String fileName, String fileType, String operation, int count, String lastModification) {
         model.setValueAt(fileName, rowIndex, 0);
         model.setValueAt(fileType, rowIndex, 1);
         model.setValueAt(operation, rowIndex, 2);
         model.setValueAt(count, rowIndex, 3);
-        model.setValueAt(lastModification.toString(), rowIndex, 4);
+        model.setValueAt(lastModification, rowIndex, 4);
     }
     
     private int countRows(Map<String, Map<String, Object>> stats) {
@@ -130,17 +156,17 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         return count;
     }
     
-    private Date getLastModificationDateForOperation(String operation, List<DataStructure> dataStructures) {
-        Date date = null;
+    private Long getLastModificationDateForOperation(String operation, List<DataStructure> dataStructures) {
+        Long date = null;
         for(DataStructure ds : dataStructures) {
             if(!ds.getOperation().equals(operation)) {
                 continue;
             }
-            Date tmp = ds.getDate();
+            Long tmp = ds.getDate();
             if (date == null) {
                 date = tmp;
             } else {
-                if(date.before(tmp)) {
+                if(date < tmp) {
                     date = tmp;
                 }
             }
@@ -209,4 +235,6 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         model.setColumnIdentifiers(headersTab);
         return table;
     }
+    
+    
 }

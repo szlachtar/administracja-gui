@@ -17,16 +17,16 @@ public class DataStructure {
     private String fileName;
     private String fileType;
     private String operation;
-    private Date date;
+    private Long date;
     
     public DataStructure() {
     }
 
-    public Date getDate() {
+    public Long getDate() {
         return date;
     }
 
-    public void setDate(Date date) {
+    public void setDate(Long date) {
         this.date = date;
     }
 
