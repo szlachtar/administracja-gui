@@ -12,12 +12,17 @@
 #include <syslog.h>
 #include <time.h>
 #include <regex.h>
+#include <assert.h>
+
+#define _XOPEN_SOURCE 500
+#include <ftw.h>
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 #define DAEMON_NAME "file_mon"
 #define PID_FILE "/var/run/file_mon.pid"
+#define PATH_SIZE 512
 
 FILE *logfile;
 
@@ -55,16 +60,6 @@ void daemonize_process()
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-
-/*
-  FILE *fp = fopen(PID_FILE,"w");
-  if (!fp)
-  {
-  // TODO Handle error
-  }
-
-  fprintf(fp,"%d\n",getpid());
-  fclose(fp);*/
 }
 
 void print_help()
@@ -137,6 +132,136 @@ int char_to_flag(char c)
 
 }
 
+int has_wildcard(const char* path)
+{
+	char* p = (char*)path; 
+	while(*p!=0 && *p!='*')p++;  
+	return *p!=0; 	 
+} 
+
+
+void add_file(int fd, int flags, const char* path_str)
+{ 
+	// prevents infinite loop
+	if(strcmp(path_str,"/var/lib/file_mon/stats.dat") == 0) return;  
+	
+	struct stat file_info;
+	if(lstat(path_str,&file_info)==0){
+		if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
+			//printf("%s matched \n", path_str);
+			if(inotify_add_watch(fd,path_str, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
+		}else {
+			//printf("WARN: %s is not a file or directory skipping \n",path_str);
+		}
+	} else {
+		//printf("WARN: %s does not exist skipping\n", path_str);
+	}
+} 
+// global 
+// there is no other way to pass it to add_if_correct which is invoked by nftw function
+static struct {
+	int fd; 
+	int flags;
+	regex_t pattern;
+	//char pattern[PATH_SIZE*2];
+} params; 
+
+int add_if_correct(const char* path, const struct stat* st, int typeflag) 
+{ 
+	assert(strlen(path)<PATH_SIZE); 
+	int res = regexec(&params.pattern, path, 0, NULL, 0);
+	// st struct could be passed to prevent stating file twice 
+	if(res != REG_NOMATCH) add_file(params.fd,params.flags,path);
+	 
+	return 0;
+} 
+
+// extract dir to traverse ex. /etc/*/*.conf  -> /etc/
+void wildcard_toplevel_dir(const char* w_path, char* out)
+{
+	int ce  =0; 
+	char* p= (char*)w_path;
+	while(*p && *p != '*' ){
+		if(*p == '/') ce = (int)(p-w_path);
+		p++; 
+	}
+	strncpy(out,w_path, ce+1);
+}
+
+void wildcard_pattern_to_regex(const char *wildcard, regex_t *rt) 
+{ 
+	char pattern[PATH_SIZE*3];
+	char *pin = (char*) wildcard; 
+	char *pout = (char*) pattern; 
+	memset(pattern, 0, PATH_SIZE*3*sizeof(char));
+	*pout = '^';pout++;
+	
+	
+	while(*pin){
+		//escape dot (ex. file extension)
+		if(*pin == '.' ){
+			*pout = '\\';
+			pout++; 
+			*pout = '.';
+			
+		} else if(*pin == '*') {
+			//double asteristk -> greedy - simply escape it
+			if( *(pin+1) == '*') {
+				*pout = '.';
+				pout++; 
+				*pout = '*';
+				pin++;
+			//non greedy
+			}else { 
+				/* didnt worked so using [^>]*
+				 * *pout = '.';
+				pout++; 
+				*pout = '*';
+				pout++;
+				*pout = '?';*/
+				
+				*pout = '['; pout++;
+				*pout = '^'; pout++;
+				*pout = '/'; pout++;
+				*pout = ']'; pout++;
+				*pout = '*';
+			}  
+			
+		}else {
+			*pout = *pin;
+		} 
+		
+		pin++;
+		pout++;
+	} 
+	*pout = '$';
+		
+	if (regcomp(rt, pattern, REG_EXTENDED)) {
+    	fprintf(stderr," bad pattern:");
+    	exit(1);
+  	}
+  	
+ // 	printf("final regex %s\n",pattern); 
+}
+
+// match all directories and add it to inotify
+// returns number of files
+void wildcard_expand(int fd, int fl, const char* path) 
+{
+	assert(strlen(path)<PATH_SIZE); 
+	char dirpath[PATH_SIZE];
+	params.fd = fd; 
+	params.flags = fl;
+		
+	memset(dirpath,0,PATH_SIZE*sizeof(char));	
+	
+	wildcard_pattern_to_regex(path,&params.pattern);
+	wildcard_toplevel_dir(path,dirpath);
+	
+	ftw(dirpath,add_if_correct, 100);
+}
+
+
 void load_config(int fd)
 {
 	char *buffer=0;
@@ -158,7 +283,7 @@ void load_config(int fd)
 
 	regex_t st_comment,st_pattern;
 	const char *comment_pattern = "^#.*$";
-  	const char *pattern = "^([CAOMD]+)[ \\t]+([a-zA-Z/\.-]+)$";
+  	const char *pattern = "^([CAOMD]+)[ \\t]+([a-zA-Z/\\.-\\*]+)$";
 
 
 	if (regcomp(&st_pattern, pattern, REG_EXTENDED)) {
@@ -185,28 +310,21 @@ void load_config(int fd)
 			else
 			{
 				int flags=0;
-				//MASK 
+				//MASK
 				char *s= pch+matchptr[1].rm_so;
 				for(;s!=pch+matchptr[1].rm_eo;++s){
 					flags|=char_to_flag(*s);
 				}
-				
-				
+
+
 				int path_len = (matchptr[2].rm_eo - matchptr[2].rm_so);
 				char* path_str = malloc(sizeof(char)* (path_len+1) );
 				memset(path_str, 0 , path_len+1);
 				strncpy(path_str,pch+ matchptr[2].rm_so, path_len);
 
-				struct stat file_info;
-				if(lstat(path_str,&file_info)==0){	
-					if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
-						if(inotify_add_watch(fd,path_str, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
-					}else {
-						printf("WARN: %s is not a file or directory skipping \n",path_str);
-					}
-				} else {
-					printf("WARN: %s does not exist skipping\n", path_str);
-				}
+				if(has_wildcard(path_str)) wildcard_expand(fd,flags,path_str);
+				else add_file(fd,flags,path_str);
+				
 				free(path_str);
 			}
 		}
