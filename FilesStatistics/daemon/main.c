@@ -448,11 +448,13 @@ int main(int argc, char** argv)
     int total_size = 0;
 
     while(true){
-        size = read(fd,&buffer,EVENT_BUF_LEN);
+        size = read(fd,buffer,EVENT_BUF_LEN);
 
         for(i = 0;i<size;){
-            event = (struct inotify_event *) buffer + i;
+            //event = (struct inotify_event *) buffer + i;
+            event = (struct inotify_event *) ((char*)buffer + i);
             event_size = EVENT_SIZE+event->len;
+            
 
             tmp = malloc(sizeof(struct event_item));
             tmp->time = time(NULL);
