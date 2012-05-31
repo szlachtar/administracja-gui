@@ -22,7 +22,7 @@
 
 #define DAEMON_NAME "file_mon"
 #define PID_FILE "/var/run/file_mon.pid"
-#define PATH_SIZE 512
+#define PATH_SIZE 1024
 
 FILE *logfile;
 
@@ -32,6 +32,49 @@ struct event_item
     struct event_item *next;
     time_t time;
 };
+
+struct wd_path_item_t
+{
+	int wd; 
+	char *file_path;
+	struct wd_path_item_t* next;
+};  
+typedef struct wd_path_item_t   wd_path_item;
+//head of the list 
+wd_path_item* wd_path_list=NULL; 
+
+wd_path_item* create_wd_path_item(int wd, const char* path)
+{
+	wd_path_item*  it=(wd_path_item* )malloc(sizeof(wd_path_item));
+	it->wd = wd; 
+	int len = (strlen(path)+2);
+	it->file_path = malloc(len*sizeof(char));
+	memset(it->file_path,0,len*sizeof(char));
+	strncpy(it->file_path, path,len-1);
+	it->next = NULL; 
+	return it;
+}
+
+void add_to_wd_path_list(wd_path_item* it)
+{
+	it->next = wd_path_list;
+	wd_path_list = it;  
+} 
+
+//naive search
+const char* find_filepath_by_wd(int wd) 
+{ 
+	const char *res=NULL;
+	wd_path_item* it= wd_path_list;
+	while(it) {
+		if( it->wd == wd ) res = it->file_path;
+		//printf("%s \n",it->file_path);
+		it =it->next;
+		 
+	} 
+	return res; 
+} 
+
 
 void daemonize_process()
 {
@@ -90,18 +133,22 @@ void analyze(struct event_item *event_item)
     else
         mark='F';
 
+	const char* file_path = find_filepath_by_wd(event->wd);
+	// sometimes wd == 0 i dont know why
+	//assert(file_path); 
+	if(file_path != 0 ){
     /* analaze type of event and log it to stats.dat */
-    if(event->mask & IN_CREATE)
-        fprintf (logfile,"%s %c C %lu\n", event->name, mark, event_item->time);
-    if(event->mask & IN_ACCESS)
-        fprintf (logfile,"%s %c A %lu\n", event->name, mark, event_item->time);
-    if(event->mask & IN_OPEN)
-        fprintf (logfile,"%s %c O %lu\n", event->name, mark, event_item->time);
-    if(event->mask & IN_MODIFY)
-        fprintf (logfile,"%s %c M %lu\n", event->name, mark, event_item->time);
-    if(event->mask & IN_DELETE)
-        fprintf (logfile,"%s %c D %lu\n", event->name, mark, event_item->time);
-
+		if(event->mask & IN_CREATE)
+			fprintf (logfile,"%s %c C %lu\n", file_path, mark, event_item->time);
+		if(event->mask & IN_ACCESS)
+			fprintf (logfile,"%s %c A %lu\n", file_path, mark, event_item->time);
+		if(event->mask & IN_OPEN)
+			fprintf (logfile,"%s %c O %lu\n", file_path, mark, event_item->time);
+		if(event->mask & IN_MODIFY)
+			fprintf (logfile,"%s %c M %lu\n", file_path, mark, event_item->time);
+		if(event->mask & IN_DELETE)
+			fprintf (logfile,"%s %c D %lu\n", file_path, mark, event_item->time);
+	}
 	free(event);
 	free(event_item);
     analyze(next);
@@ -149,7 +196,9 @@ void add_file(int fd, int flags, const char* path_str)
 	if(lstat(path_str,&file_info)==0){
 		if ( S_ISDIR(file_info.st_mode) || S_ISREG(file_info.st_mode)){
 			//printf("%s matched \n", path_str);
-			if(inotify_add_watch(fd,path_str, flags) < 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
+			int wd  = inotify_add_watch(fd,path_str, flags);
+			if( wd< 0){ syslog(LOG_ERR,"cannot add_watch on %s", path_str);}
+			else { add_to_wd_path_list(create_wd_path_item(wd,path_str)); } 
 		}else {
 			//printf("WARN: %s is not a file or directory skipping \n",path_str);
 		}
