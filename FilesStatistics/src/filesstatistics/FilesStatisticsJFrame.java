@@ -42,6 +42,7 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         initComponents();
         applicationProperties = PropertiesReader.readProperties();
         filesTablePostCreation(filesTable);
+        
     }
 
     /**
@@ -89,8 +90,8 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(refreshButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 540, Short.MAX_VALUE)
+            .addComponent(refreshButton, javax.swing.GroupLayout.DEFAULT_SIZE, 657, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 657, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -124,6 +125,9 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
                     index++;
                 }
             }
+            ChartFrame frame = new ChartFrame("Statistics",stats);
+            frame.pack();
+            frame.setVisible(true);
         } catch (IOException ex) {
             Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -132,10 +136,6 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     private void filesTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_filesTableMouseClicked
         JTable target = (JTable)evt.getSource();
         int row = target.getSelectedRow();
-        SimpleChart chart = new SimpleChart(stats);
-        ChartFrame panel = new ChartFrame();
-        panel.draw(chart.createChart());
-        panel.setVisible(true);
     }//GEN-LAST:event_filesTableMouseClicked
 
     private void setInfoToTable(TableModel model, int rowIndex, String fileName, String fileType, String operation, int count, String lastModification) {
@@ -213,7 +213,9 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
 
             public void run() {
                 try {
-                    new FilesStatisticsJFrame().setVisible(true);
+                    new FilesStatisticsJFrame().setVisible(true);    
+
+
                 } catch (IOException ex) {
                     Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
