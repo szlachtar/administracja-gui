@@ -134,9 +134,23 @@ void analyze(struct event_item *event_item)
         mark='F';
 
 	const char* file_path = find_filepath_by_wd(event->wd);
+	
 	// sometimes wd == 0 i dont know why
 	//assert(file_path); 
 	if(file_path != 0 ){
+		
+		char* p=NULL; 
+		if(!(event->mask & IN_ISDIR)){
+			int l = event->len+strlen(file_path)+2;
+			p = (char*)malloc(l);
+			memset(p,0,sizeof(char)*l);
+			strncat(p, file_path,strlen(file_path));
+			if( event->len){
+				strncat(p, "/",1);  	
+				strncat(p, event->name, event->len);
+			}
+			file_path = p;
+		}
     /* analaze type of event and log it to stats.dat */
 		if(event->mask & IN_CREATE)
 			fprintf (logfile,"%s %c C %lu\n", file_path, mark, event_item->time);
@@ -148,6 +162,8 @@ void analyze(struct event_item *event_item)
 			fprintf (logfile,"%s %c M %lu\n", file_path, mark, event_item->time);
 		if(event->mask & IN_DELETE)
 			fprintf (logfile,"%s %c D %lu\n", file_path, mark, event_item->time);
+			
+		if(!(event->mask & IN_ISDIR)) free(p);
 	}
 	free(event);
 	free(event_item);
