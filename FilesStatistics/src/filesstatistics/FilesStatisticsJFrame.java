@@ -10,6 +10,8 @@ import filesstatistics.core.DataStructure;
 import filesstatistics.core.PropertiesReader;
 import filesstatistics.core.StatisticsReader;
 import filesstatistics.core.StatisticsReaderImpl;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -68,14 +70,23 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
             }
         });
 
+        filesTable.setAutoCreateRowSorter(true);
         filesTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
 
             },
             new String [] {
-
+                "File name", "Type", "Operation", "Count", "Date"
             }
-        ));
+        ) {
+            Class[] types = new Class [] {
+                java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.Integer.class, java.lang.Object.class
+            };
+
+            public Class getColumnClass(int columnIndex) {
+                return types [columnIndex];
+            }
+        });
         filesTable.setEditingColumn(0);
         filesTable.setEditingRow(0);
         filesTable.getTableHeader().setReorderingAllowed(false);
@@ -128,6 +139,7 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
             ChartFrame frame = new ChartFrame("Statistics",stats);
             frame.pack();
             frame.setVisible(true);
+            //mine
         } catch (IOException ex) {
             Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
         }

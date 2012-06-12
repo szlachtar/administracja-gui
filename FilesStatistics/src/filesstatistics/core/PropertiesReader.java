@@ -22,8 +22,6 @@ public class PropertiesReader {
     private static Properties properties;
     
     public static Properties readProperties() throws IOException {
-        System.out.println("Working Directory = " +
-           System.getProperty("user.dir"));
         if(properties == null) {
             properties = new Properties();
             properties.load(new FileInputStream(PROPERTIES_FILE_PATH));

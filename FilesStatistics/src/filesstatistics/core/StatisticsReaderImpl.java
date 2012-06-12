@@ -4,14 +4,9 @@
  */
 package filesstatistics.core;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -28,14 +23,18 @@ public class StatisticsReaderImpl implements StatisticsReader {
     @Override
     public Map<String, Map<String, Object>> readStatistics() throws IOException {
         
-        FileReader statisticsFile = new FileReader((String)applicationProperties.get(PropertiesReader.STATISTICS_FILE_PATH_KEY));
-        BufferedReader br = new BufferedReader(statisticsFile);
+        Scanner scanner = new Scanner(new File((String)applicationProperties.get(PropertiesReader.STATISTICS_FILE_PATH_KEY)));
         
         Map<String, Map<String, Object>> statistics = new HashMap<String, Map<String,Object>>();
         
-        String line = null;
-        while((line = br.readLine()) != null) {
-            DataStructure ds = parseLine(line);
+        int lineNum = 0;
+        while(scanner.hasNextLine()) {
+            lineNum++;
+            DataStructure ds = parseLine(scanner.nextLine(), lineNum);
+            if (ds == null) {
+                System.out.println("continue");
+                continue;
+            }
             if(!statistics.containsKey(ds.getFileName())) {
                 statistics.put(ds.getFileName(), new HashMap<String, Object>());
             }
@@ -61,13 +60,24 @@ public class StatisticsReaderImpl implements StatisticsReader {
         return statistics;
     }
     
-    private DataStructure parseLine(String line) {
-        String[] fields = line.split(" ");
-        DataStructure ds = new DataStructure();
-        ds.setFileName(fields[0]);
-        ds.setFileType(fields[1]);
-        ds.setOperation(fields[2]);
-        ds.setDate(Long.parseLong(fields[3]));
+    private DataStructure parseLine(String line, int lineNum) {
+        DataStructure ds = null;
+        try {
+            String[] fields = line.split(" ");
+            ds = new DataStructure();
+            ds.setDate(Long.parseLong(fields[fields.length-1]));
+            ds.setOperation(fields[fields.length-2]);
+            ds.setFileType(fields[fields.length-3]);
+            String s = fields[0];
+            for(int i=1; i<fields.length-3; i++) {
+                s += " " + fields[i];
+            }
+            ds.setFileName(s);
+        } catch (Exception e) {
+            System.err.println("Could not parse " + lineNum + " line: " + line);
+            System.err.println("Due to exception: " + e.toString());
+            ds = null;
+        }
         return ds;
     }
 }
