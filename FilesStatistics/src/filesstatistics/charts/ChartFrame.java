@@ -23,9 +23,9 @@ public class ChartFrame extends ApplicationFrame {
      *
      * @param title the frame title.
      */
-    public ChartFrame(String title,Map<String,Map<String,Object>> stats) {
-        super(title);
-        ChartPanel chartPanel = new ChartPanel(new SimpleChart(stats, title).createChart(), false);
+    public ChartFrame(String fileName,String operation,Map<String,Map<String,Object>> stats) {
+        super(fileName + " - " + operation);
+        ChartPanel chartPanel = new ChartPanel(new SimpleChart(stats, fileName, operation).createChart(), false);
         chartPanel.setPreferredSize(new Dimension(500, 270));
         setContentPane(chartPanel);
     }

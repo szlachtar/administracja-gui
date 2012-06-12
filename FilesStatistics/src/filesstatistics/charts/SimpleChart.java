@@ -4,16 +4,23 @@
  */
 package filesstatistics.charts;
 
+import filesstatistics.core.DataStructure;
 import filesstatistics.core.StatisticsReader;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.time.Day;
+import org.jfree.data.time.TimeSeries;
+import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.xy.XYSeries;
 
 /**
@@ -25,25 +32,46 @@ public class SimpleChart {
     private StatisticsReader statisticsReader;
     private Map<String, Map<String, Object>> stats;
     private String file;
+    private String operation;
 
-    public SimpleChart(Map<String, Map<String, Object>> stats, String fileName) {
+    public SimpleChart(Map<String, Map<String, Object>> stats, String fileName, String operation) {
         this.stats = stats;
         this.file = fileName;
+        this.operation = operation;
     }
 
     public JFreeChart createChart() {
-        XYSeries series = new XYSeries("XYGraph");
         DateAxis dateAxis = new DateAxis("Date");
-        DateFormat chartFormatter = new SimpleDateFormat("yyyy/MM/dd HH:mm");
+        DateFormat chartFormatter = new SimpleDateFormat("yyyy/MM/dd");
         dateAxis.setDateFormatOverride(chartFormatter);
-        NumberAxis valueAxis = new NumberAxis();
 
         DefaultCategoryDataset xyDataset = new DefaultCategoryDataset();
+        
+        List<DataStructure> dataStructures = (List)stats.get(file).get("dataStructures");
+        
+        TreeMap<String, Integer> values = new TreeMap<String, Integer>();
+        
+        for(DataStructure ds : dataStructures) {
+            if(!ds.getOperation().equals(operation)) {
+                continue;
+            }
+            String date = chartFormatter.format(new Date(ds.getDate()));
+            boolean containsKey = values.containsKey(date);
+            Integer v = 0;
+            if(containsKey) {
+                v = values.get(date);
+            }
+            v++;
+            values.put(date, v);
+        }
+        int count = 0;
+        for(String date : values.keySet()) {
+            count += values.get(date);
+            xyDataset.addValue(count, file, date);
+            
+        }
 
-        Map<String, Object> infos = stats.get("a.txt");
-        Map<String, Object> descriptionMap = stats.get(file);
-
-        Integer c = (Integer)descriptionMap.get("M");
+        /*Integer c = (Integer)descriptionMap.get("M");
         if(c!=null){
             xyDataset.addValue(c, "M", file);
         }
@@ -57,13 +85,13 @@ public class SimpleChart {
         }c = (Integer) descriptionMap.get("O");
         if(c!=null){
             xyDataset.addValue(c, "O", file);
-        }
+        }*/
 
         JFreeChart chart = ChartFactory.createStackedBarChart("File system stats",
                 "Files",
                 "Events",
                 xyDataset,
-                PlotOrientation.HORIZONTAL,
+                PlotOrientation.VERTICAL,
                 true,
                 true,
                 false);

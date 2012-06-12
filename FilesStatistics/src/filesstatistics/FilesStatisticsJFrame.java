@@ -5,13 +5,10 @@
 package filesstatistics;
 
 import filesstatistics.charts.ChartFrame;
-import filesstatistics.charts.SimpleChart;
 import filesstatistics.core.DataStructure;
 import filesstatistics.core.PropertiesReader;
 import filesstatistics.core.StatisticsReader;
 import filesstatistics.core.StatisticsReaderImpl;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -147,8 +144,8 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
         row = target.convertRowIndexToModel(row);
         DefaultTableModel model = (DefaultTableModel)target.getModel();
         String fileName = (String)model.getValueAt(row, 0);
-        System.out.println("clicked name: " + fileName + " , row: " + row);
-        ChartFrame frame = new ChartFrame(fileName,stats);
+        String operation = (String)model.getValueAt(row, 2);
+        ChartFrame frame = new ChartFrame(fileName,operation,stats);
         frame.pack();
         frame.setVisible(true);
     }//GEN-LAST:event_filesTableMouseClicked
