@@ -144,9 +144,10 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     private void filesTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_filesTableMouseClicked
         JTable target = (JTable)evt.getSource();
         int row = target.getSelectedRow();
+        row = target.convertRowIndexToModel(row);
         DefaultTableModel model = (DefaultTableModel)target.getModel();
         String fileName = (String)model.getValueAt(row, 0);
-        System.out.println("clicked name: " + fileName);
+        System.out.println("clicked name: " + fileName + " , row: " + row);
         ChartFrame frame = new ChartFrame(fileName,stats);
         frame.pack();
         frame.setVisible(true);
