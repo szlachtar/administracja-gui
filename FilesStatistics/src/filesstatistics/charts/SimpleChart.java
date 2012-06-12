@@ -87,12 +87,12 @@ public class SimpleChart {
             xyDataset.addValue(c, "O", file);
         }*/
 
-        JFreeChart chart = ChartFactory.createStackedBarChart("File system stats",
-                "Files",
-                "Events",
+        JFreeChart chart = ChartFactory.createStackedBarChart(file + " - operation " + operation,
+                "Dates",
+                "Count",
                 xyDataset,
                 PlotOrientation.VERTICAL,
-                true,
+                false,
                 true,
                 false);
 
