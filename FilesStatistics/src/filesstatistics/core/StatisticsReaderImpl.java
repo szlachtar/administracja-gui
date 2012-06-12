@@ -32,7 +32,6 @@ public class StatisticsReaderImpl implements StatisticsReader {
             lineNum++;
             DataStructure ds = parseLine(scanner.nextLine(), lineNum);
             if (ds == null) {
-                System.out.println("continue");
                 continue;
             }
             if(!statistics.containsKey(ds.getFileName())) {

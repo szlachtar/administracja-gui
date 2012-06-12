@@ -136,10 +136,6 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
                     index++;
                 }
             }
-            ChartFrame frame = new ChartFrame("Statistics",stats);
-            frame.pack();
-            frame.setVisible(true);
-            //mine
         } catch (IOException ex) {
             Logger.getLogger(FilesStatisticsJFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -148,6 +144,12 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     private void filesTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_filesTableMouseClicked
         JTable target = (JTable)evt.getSource();
         int row = target.getSelectedRow();
+        DefaultTableModel model = (DefaultTableModel)target.getModel();
+        String fileName = (String)model.getValueAt(row, 0);
+        System.out.println("clicked name: " + fileName);
+        ChartFrame frame = new ChartFrame(fileName,stats);
+        frame.pack();
+        frame.setVisible(true);
     }//GEN-LAST:event_filesTableMouseClicked
 
     private void setInfoToTable(TableModel model, int rowIndex, String fileName, String fileType, String operation, int count, String lastModification) {

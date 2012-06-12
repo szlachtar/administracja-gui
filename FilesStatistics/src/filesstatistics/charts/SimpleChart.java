@@ -24,9 +24,11 @@ public class SimpleChart {
 
     private StatisticsReader statisticsReader;
     private Map<String, Map<String, Object>> stats;
+    private String file;
 
-    public SimpleChart(Map<String, Map<String, Object>> stats) {
+    public SimpleChart(Map<String, Map<String, Object>> stats, String fileName) {
         this.stats = stats;
+        this.file = fileName;
     }
 
     public JFreeChart createChart() {
@@ -36,30 +38,25 @@ public class SimpleChart {
         dateAxis.setDateFormatOverride(chartFormatter);
         NumberAxis valueAxis = new NumberAxis();
 
-
         DefaultCategoryDataset xyDataset = new DefaultCategoryDataset();
 
-
         Map<String, Object> infos = stats.get("a.txt");
-        for(String file: stats.keySet()){
-            Map<String, Object> descriptionMap = stats.get(file);
-            
-            Integer c = (Integer)descriptionMap.get("M");
-            if(c!=null){
-                xyDataset.addValue(c, "M", file);
-            }
-            c = (Integer)descriptionMap.get("C");
-            if(c!=null){
-                xyDataset.addValue(c, "C", file);
+        Map<String, Object> descriptionMap = stats.get(file);
 
-            }c = (Integer) descriptionMap.get("A");
-            if(c!=null){
-                xyDataset.addValue(c, "A", file);
-            }c = (Integer) descriptionMap.get("O");
-            if(c!=null){
-                xyDataset.addValue(c, "O", file);
-            }
+        Integer c = (Integer)descriptionMap.get("M");
+        if(c!=null){
+            xyDataset.addValue(c, "M", file);
+        }
+        c = (Integer)descriptionMap.get("C");
+        if(c!=null){
+            xyDataset.addValue(c, "C", file);
 
+        }c = (Integer) descriptionMap.get("A");
+        if(c!=null){
+            xyDataset.addValue(c, "A", file);
+        }c = (Integer) descriptionMap.get("O");
+        if(c!=null){
+            xyDataset.addValue(c, "O", file);
         }
 
         JFreeChart chart = ChartFactory.createStackedBarChart("File system stats",
