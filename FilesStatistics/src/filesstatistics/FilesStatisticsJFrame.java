@@ -27,7 +27,7 @@ public class FilesStatisticsJFrame extends javax.swing.JFrame {
     
     private StatisticsReader statisticsReader = new StatisticsReaderImpl();
     private Properties applicationProperties;
-    private DateFormat dateFormatter = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+    private DateFormat dateFormatter = new SimpleDateFormat("yyyy.MM.dd");
     
     /*
      * {filename : { dataStructures : List<DataStructure>, A : 1, C : 234 ...} }
